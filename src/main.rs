@@ -1,5 +1,7 @@
 use std::error::Error;
 use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
 
 mod launchpad;
 use launchpad::*;
@@ -7,9 +9,12 @@ mod hue;
 
 
 fn main() {
-    match run() {
-        Ok(_) => (),
-        Err(err) => eprintln!("Error: {}", err)
+    loop {
+        match run() {
+            Ok(_) => (),
+            Err(err) => eprintln!("Error: {}", err)
+        }
+        thread::sleep(Duration::new(5, 0));
     }
 }
 
@@ -19,13 +24,5 @@ fn run() -> Result<(), Box<dyn Error>> {
     let _input_midi = input_handling(tx)?;
     let _output_midi = output_handling()?;
     hue::hue(rx)?;
-
-    /*
-    // Keep program alive until enter
-    let mut input = String::new();
-    input.clear();
-    stdin().read_line(&mut input)?;
-    println!("Bye!");
-    */
     Ok(())
 }
