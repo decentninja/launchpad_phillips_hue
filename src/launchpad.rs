@@ -1,18 +1,20 @@
 use midir::{MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnection};
 use std::error::Error;
+use std::sync::mpsc::{Sender};
+use super::hue::Message;
 
-pub fn input_handling() -> Result<MidiInputConnection<()>, Box<dyn Error>> {
+pub fn input_handling(tx: Sender<Message>) -> Result<MidiInputConnection<()>, Box<dyn Error>> {
     let midi_in = MidiInput::new("midir reading input")?;
     let in_ports = midi_in.ports();
 
-    let hard_coded = "MIDIIN2 (LPX MIDI)"; // TODO: Read this from file
+    let hard_coded = "MIDIIN2 (LPX MIDI)".to_string(); // TODO: Read this from file
 
-    let in_port = in_ports.iter().find(|&x| midi_in.port_name(x).unwrap() == hard_coded);
+    let in_port = in_ports.iter().find(|&x| midi_in.port_name(x).as_ref() == Ok(&hard_coded));
     let in_port = match in_port {
         None => {
             println!("Could could not connect to midi input {}\nFound only:\n", hard_coded);
             for p in in_ports.iter() {
-                let name = midi_in.port_name(p).unwrap();
+                let name = midi_in.port_name(p)?;
                 println!("{}", name);
             }
             Err("Fuck".to_string())?
@@ -21,14 +23,17 @@ pub fn input_handling() -> Result<MidiInputConnection<()>, Box<dyn Error>> {
     };
 
     // _conn_in needs to be a named parameter, because it needs to be kept alive until the end of the scope
-    Ok(midi_in.connect(in_port, "midir-read-input", move |stamp, message, _| {
-        println!("{}: {:?} (len = {})", stamp, message, message.len());
+    Ok(midi_in.connect(in_port, "midir-read-input", move |_stamp, message, _| {
+        //println!("{}: {:?} (len = {})", stamp, message, message.len());
         if message.len() != 3 {
             eprintln!("Got message of length {}. WTF it should be 3, maybe we need to filter messages better.", message.len());
         }
         let light = message[1];
         let value = message[2] as f32 / 127f32;
-        println!("Set light {} to {}", light, value);
+        let _ = tx.send(Message {
+            light: light as usize,
+            strength: value,
+        });
     }, ())?)
 }
 
@@ -38,14 +43,14 @@ pub fn output_handling() -> Result<MidiOutputConnection, Box<dyn Error>> {
     // Get an output port (read from console if multiple are available)
     let out_ports = midi_out.ports();
 
-    let hard_coded = "MIDIOUT2 (LPX MIDI)"; // TODO: Read this from file
+    let hard_coded = "MIDIOUT2 (LPX MIDI)".to_string(); // TODO: Read this from file
 
-    let out_port = out_ports.iter().find(|&x| midi_out.port_name(x).unwrap() == hard_coded);
+    let out_port = out_ports.iter().find(|&x| midi_out.port_name(x).as_ref() == Ok(&hard_coded));
     let out_port = match out_port {
         None => {
             println!("Could could not connect to midi output {}\nFound only:\n", hard_coded);
             for p in out_port.iter() {
-                let name = midi_out.port_name(p).unwrap();
+                let name = midi_out.port_name(p)?;
                 println!("{}", name);
             }
             Err("Fuck".to_string())?
