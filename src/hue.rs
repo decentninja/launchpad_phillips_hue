@@ -65,6 +65,15 @@ pub fn hue(rx: Receiver<Message>) -> Result<(), Box<dyn Error>> {
             }
         }
         for (light, strength) in debounce.iter() {
+            let light = match light {
+                // Remaps
+                4 => 5,
+                5 => 6,
+                6 => 7,
+                7 => 13,
+                8 => 33,
+                a => *a
+            };
             println!("Light {} to {}", light, strength);
             let mut cmd = hueclient::CommandLight::default();
             if strength < &0.1f32 {
@@ -72,7 +81,7 @@ pub fn hue(rx: Receiver<Message>) -> Result<(), Box<dyn Error>> {
             } else {
                 cmd = cmd.on().with_bri((strength * 255f32) as u8)
             }
-            bridge.set_group_state(*light, &cmd)?;
+            bridge.set_group_state(light, &cmd)?;
         }
         debounce.clear();
     }
